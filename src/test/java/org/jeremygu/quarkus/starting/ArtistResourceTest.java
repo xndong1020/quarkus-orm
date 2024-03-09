@@ -3,8 +3,11 @@ package org.jeremygu.quarkus.starting;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import jakarta.ws.rs.core.MediaType;
 
+import org.jeremygu.quarkus.starting.models.Artist;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -14,88 +17,85 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 import static org.hamcrest.CoreMatchers.is;
 
-import java.sql.SQLException;
-
-import org.jeremygu.quarkus.starting.repos.DatabaseUtil;
+import java.time.Instant;
 
 @QuarkusTest
-@TestInstance(TestInstance.Lifecycle.PER_CLASS) // Allows non-static @BeforeAll
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class) // Define the order of test methods
-
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ArtistResourceTest {
 
-  @Inject
-    DatabaseUtil dbUtil;
+    @Inject
+    EntityManager em;
+
+    private Long artistId;
 
     @BeforeAll
-    public void setup() throws SQLException {
-        // Drop the table if it exists to ensure a clean state
-        dbUtil.executeSql("DROP TABLE IF EXISTS public.t_artists");
+    @Transactional
+    public void setup() {
+        // Cleanup any existing artists to ensure test isolation
+        // em.createQuery("DELETE FROM Artist").executeUpdate();
 
-        // Recreate the table
-        dbUtil.executeSql("""
-            CREATE table public.t_artists (
-                id BIGSERIAL NOT NULL,
-                "name" VARCHAR(100) NOT NULL,
-                bio TEXT NULL,
-                created_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY (id)
-            )
-            """);
+        // Pre-populate the database if necessary
+        Artist artist = new Artist();
+        artist.setName("Pre-existing Artist");
+        artist.setBio("A pre-existing artist bio");
+        artist.setCreatedDate(Instant.now());
+        em.persist(artist);
+        artistId = artist.getId(); // Save artist ID for use in tests
     }
 
-  @Test
-  @Order(1)
-  public void testUpsertArtistEndpoint() {
-      RestAssured.given()
-        .contentType(MediaType.APPLICATION_JSON)
-        .body("{\"name\": \"New Artist\", \"bio\": \"A new bio\"}")
-        .when().post("/api/artists")
-        .then()
-           .statusCode(200)
-           .body("name", is("New Artist"),
-                 "bio", is("A new bio")); // Adjust based on your implementation
-  }
+    @Test
+    @Order(1)
+    public void testUpsertArtistEndpoint() {
+        RestAssured.given()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"name\": \"New Artist\", \"bio\": \"A new bio\"}")
+                .when().post("/api/artists")
+                .then()
+                .statusCode(200)
+                .body("name", is("New Artist"),
+                        "bio", is("A new bio"));
+    }
 
     @Test
     @Order(2)
     public void testGetAllArtistsEndpoint() {
         RestAssured.given()
-          .when().get("/api/artists")
-          .then()
-             .statusCode(200)
-             .body("$.size()", is(1)); // Assuming there are 2 artists in your database
+                .when().get("/api/artists")
+                .then()
+                .statusCode(200)
+                // Assuming the test runs in isolation and only one artist exists initially
+                .body("$.size()", is(2)); // This now includes the pre-existing artist and the newly added artist
     }
 
     @Test
     @Order(3)
     public void testGetArtistByIdEndpoint() {
         RestAssured.given()
-          .when().get("/api/artists/1")
-          .then()
-             .statusCode(200)
-             .body("id", is(1)); // Adjust expectations based on your data
+                .when().get("/api/artists/" + artistId)
+                .then()
+                .statusCode(200)
+                .body("name", is("Pre-existing Artist"));
     }
 
     @Test
     @Order(4)
     public void testCountAllArtistsEndpoint() {
         RestAssured.given()
-          .when().get("/api/artists/count")
-          .then()
-             .statusCode(200)
-             .body(is("1")); // Assuming there are 2 artists
+                .when().get("/api/artists/count")
+                .then()
+                .statusCode(200)
+                .body(is("2"));
     }
-
 
     @Test
     @Order(5)
+    @Transactional
     public void testDeleteByIdEndpoint() {
-        // This test might need to be adjusted based on how your application handles deletes
-        // For example, if deletion is permanent, you might first need to ensure an artist exists to delete
+        // Ensure the artist to be deleted exists
         RestAssured.given()
-          .when().delete("/api/artists/1")
-          .then()
-             .statusCode(204); // No Content on successful deletion
+                .when().delete("/api/artists/" + artistId)
+                .then()
+                .statusCode(204); // Expect No Content on successful deletion
     }
 }

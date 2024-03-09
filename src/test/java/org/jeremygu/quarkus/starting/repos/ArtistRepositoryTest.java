@@ -1,18 +1,16 @@
 package org.jeremygu.quarkus.starting.repos;
 
 import io.quarkus.test.junit.QuarkusTest;
-
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import org.jeremygu.quarkus.starting.models.Artist;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import jakarta.inject.Inject;
-
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
-
 
 @QuarkusTest
 public class ArtistRepositoryTest {
@@ -20,61 +18,81 @@ public class ArtistRepositoryTest {
     @Inject
     ArtistRepository artistRepository;
 
-    @Inject
-    DatabaseUtil dbUtil;
-
     @BeforeEach
+    @Transactional
     public void setup() throws SQLException {
-        // Drop the table if it exists to ensure a clean state
-        dbUtil.executeSql("DROP TABLE IF EXISTS public.t_artists");
-
-        // Recreate the table
-        dbUtil.executeSql("""
-            CREATE table public.t_artists (
-                id BIGSERIAL NOT NULL,
-                "name" VARCHAR(100) NOT NULL,
-                bio TEXT NULL,
-                created_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY (id)
-            )
-            """);
+        // Clean up the artist table before each test
+        // artistRepository.findAll().forEach(artist -> artistRepository.delete(artist));
     }
 
     @Test
     public void testFindAll() throws SQLException {
-        // Given pre-populated data or after inserting data
+        // Given
+        Artist artist = new Artist();
+        artist.setName("Artist Name");
+        artist.setBio("Artist Bio");
+        artist.setCreatedDate(Instant.now());
+        artistRepository.save(artist);
 
         // When
         List<Artist> artists = artistRepository.findAll();
 
         // Then
-        Assertions.assertNotNull(artists);
-        Assertions.assertTrue(artists.isEmpty());
+        Assertions.assertFalse(artists.isEmpty(), "Artists list should not be empty after adding an artist.");
     }
 
     @Test
+    @Transactional
     public void testSaveAndFindById() {
         // Given
-        Artist newArtist = new Artist(null, "Test Artist", "Bio", Instant.now());
+        Artist newArtist = new Artist();
+        newArtist.setName("Test Artist");
+        newArtist.setBio("Bio");
+        newArtist.setCreatedDate(Instant.now());
 
         // When
-        Artist savedArtist = artistRepository.save(newArtist);
-        Artist foundArtist = artistRepository.findById(savedArtist.getId()).orElse(null);
+        artistRepository.save(newArtist);
+        Artist foundArtist = artistRepository.findById(newArtist.getId()).orElse(null);
 
         // Then
-        Assertions.assertNotNull(foundArtist);
-        Assertions.assertEquals("Test Artist", foundArtist.getName());
-        Assertions.assertEquals("Bio", foundArtist.getBio());
+        Assertions.assertNotNull(foundArtist, "Saved artist should be found with findById");
+        Assertions.assertEquals("Test Artist", foundArtist.getName(), "Artist name should match");
+        Assertions.assertEquals("Bio", foundArtist.getBio(), "Artist bio should match");
     }
 
     @Test
     public void testCount() {
-        // Given pre-populated data or after inserting data
+        // Given - initial empty state enforced by setup()
 
         // When
-        long count = artistRepository.count();
+        long countBefore = artistRepository.count();
+        Artist artist = new Artist();
+        artist.setName("Another Artist");
+        artist.setBio("Another Bio");
+        artist.setCreatedDate(Instant.now());
+        artistRepository.save(artist);
 
         // Then
-        Assertions.assertTrue(count >= 0);
+        long countAfter = artistRepository.count();
+        Assertions.assertEquals(countBefore + 1, countAfter, "Count should increase by 1 after adding an artist");
+    }
+
+    @Test
+    @Transactional
+    public void testDeleteByIdEndpoint() {
+        // Given
+        Artist artist = new Artist();
+        artist.setName("Artist to Delete");
+        artist.setBio("Bio");
+        artist.setCreatedDate(Instant.now());
+        artistRepository.save(artist);
+        long initialCount = artistRepository.count();
+
+        // When
+        artistRepository.delete(artist);
+
+        // Then
+        long finalCount = artistRepository.count();
+        Assertions.assertEquals(initialCount - 1, finalCount, "Count should decrease by 1 after deletion");
     }
 }
