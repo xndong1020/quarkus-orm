@@ -59,13 +59,19 @@ public class ArtistResourceTest {
 
     @Test
     @Order(2)
-    public void testGetAllArtistsEndpoint() {
+    public void testGetAllArtistsEndpointWithPagination() {
         RestAssured.given()
+                .queryParam("page", 0)
+                .queryParam("size", 20)
                 .when().get("/api/artists")
                 .then()
                 .statusCode(200)
-                // Assuming the test runs in isolation and only one artist exists initially
-                .body("$.size()", is(2)); // This now includes the pre-existing artist and the newly added artist
+                // Update assertions to match the new response structure
+                .body("data.size()", is(2)) // Assuming 2 artists exist in the database
+                .body("totalPages", is(1)) // Assuming there's only one page of artists
+                .body("totalItems", is(2)) // Total number of artists
+                .body("currentPage", is(0))
+                .body("currentSize", is(20));
     }
 
     @Test

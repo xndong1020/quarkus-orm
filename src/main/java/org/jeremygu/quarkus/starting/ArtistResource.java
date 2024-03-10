@@ -1,6 +1,8 @@
 package org.jeremygu.quarkus.starting;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.jeremygu.quarkus.starting.models.Artist;
 import org.jeremygu.quarkus.starting.repos.ArtistRepository;
@@ -9,13 +11,17 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
+import io.quarkus.panache.common.Page;
 
 @Path("/api/artists")
 @Produces(MediaType.APPLICATION_JSON)
@@ -25,8 +31,19 @@ public class ArtistResource {
   private ArtistRepository repository;
 
   @GET
-  public List<Artist> getAllArtists() {
-    return repository.listAll(); // Use Panache's listAll method
+  public Response getAllArtists(@QueryParam("page") @DefaultValue("0") int page,
+      @QueryParam("size") @DefaultValue("20") int size) {
+    PanacheQuery<Artist> query = repository.findAll().page(Page.of(page, size));
+    List<Artist> artists = query.list();
+
+    Map<String, Object> response = new HashMap<>();
+    response.put("data", artists);
+    response.put("totalPages", query.pageCount());
+    response.put("totalItems", query.count());
+    response.put("currentPage", page);
+    response.put("currentSize", size);
+
+    return Response.ok(response).build();
   }
 
   @GET
