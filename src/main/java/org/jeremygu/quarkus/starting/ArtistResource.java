@@ -1,16 +1,12 @@
 package org.jeremygu.quarkus.starting;
 
-import java.sql.SQLException;
 import java.util.List;
-import java.util.Optional;
 
-import org.jboss.logging.Logger;
 import org.jeremygu.quarkus.starting.models.Artist;
-import org.jeremygu.quarkus.starting.models.Book;
 import org.jeremygu.quarkus.starting.repos.ArtistRepository;
-import org.jeremygu.quarkus.starting.repos.BookRepository;
 
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -23,47 +19,57 @@ import jakarta.ws.rs.core.Response;
 
 @Path("/api/artists")
 @Produces(MediaType.APPLICATION_JSON)
-
 public class ArtistResource {
 
-    @Inject
-    private ArtistRepository repository;
+  @Inject
+  private ArtistRepository repository;
 
-    @GET
-    public List<Artist> getAllArtists() throws SQLException {
-      return this.repository.findAll();
-    }
+  @GET
+  public List<Artist> getAllArtists() {
+    return repository.listAll(); // Use Panache's listAll method
+  }
 
-    @GET
-    @Path("{id}")
-    public Optional<Artist> getArtistById(@PathParam("id") Long id) {
-      return this.repository.findById(id);
+  @GET
+  @Path("{id}")
+  public Response getArtistById(@PathParam("id") Long id) {
+    Artist artist = repository.findById(id); // Panache's findById directly returns the entity
+    if (artist != null) {
+      return Response.ok(artist).build();
+    } else {
+      return Response.status(Response.Status.NOT_FOUND).build();
     }
+  }
 
-    @GET
-    @Path("/count")
-    @Produces(MediaType.TEXT_PLAIN)
-    public long countAllArtists() {
-      return this.repository.count();
-    }
+  @GET
+  @Path("/count")
+  @Produces(MediaType.TEXT_PLAIN)
+  public long countAllArtists() {
+    return repository.count(); // Use Panache's count method
+  }
 
-    @POST
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    public Artist upsertArtist(Artist artist) {
-        var createdArtist = this.repository.save(artist);
-        return createdArtist;
+  @POST
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  @Transactional
+  public Response upsertArtist(Artist artist) {
+    if (artist.id == null) {
+      repository.persist(artist); // Persist new artist
+      return Response.status(Response.Status.CREATED).entity(artist).build();
+    } else {
+      Artist updatedArtist = repository.getEntityManager().merge(artist); // Update existing artist
+      return Response.ok(updatedArtist).build();
     }
+  }
 
-    @DELETE
-    @Path("{id}")
-    public Response deleteById(@PathParam("id") Long id) {
-        var artistOptional = this.repository.findById(id);
-        if (artistOptional.isPresent()) {
-            this.repository.delete(artistOptional.get());
-            return Response.status(Response.Status.NO_CONTENT).build(); // Successfully deleted
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build(); // Artist not found
-        }
+  @DELETE
+  @Path("{id}")
+  @Transactional
+  public Response deleteById(@PathParam("id") Long id) {
+    boolean deleted = repository.deleteById(id); // Panache provides deleteById
+    if (deleted) {
+      return Response.status(Response.Status.NO_CONTENT).build(); // Successfully deleted
+    } else {
+      return Response.status(Response.Status.NOT_FOUND).build(); // Artist not found
     }
+  }
 }

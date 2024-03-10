@@ -18,24 +18,18 @@ public class ArtistRepositoryTest {
     @Inject
     ArtistRepository artistRepository;
 
-    @BeforeEach
-    @Transactional
-    public void setup() throws SQLException {
-        // Clean up the artist table before each test
-        // artistRepository.findAll().forEach(artist -> artistRepository.delete(artist));
-    }
-
     @Test
+    @Transactional
     public void testFindAll() throws SQLException {
         // Given
-        Artist artist = new Artist();
-        artist.setName("Artist Name");
-        artist.setBio("Artist Bio");
-        artist.setCreatedDate(Instant.now());
-        artistRepository.save(artist);
+        Artist artist = new Artist("Artist Name", "Artist Bio", Instant.now());
+        artist.name = "Artist Name";
+        artist.bio = "Artist Bio";
+        artist.createdDate = Instant.now();
+        artistRepository.persist(artist);
 
         // When
-        List<Artist> artists = artistRepository.findAll();
+        List<Artist> artists = artistRepository.listAll();
 
         // Then
         Assertions.assertFalse(artists.isEmpty(), "Artists list should not be empty after adding an artist.");
@@ -46,31 +40,32 @@ public class ArtistRepositoryTest {
     public void testSaveAndFindById() {
         // Given
         Artist newArtist = new Artist();
-        newArtist.setName("Test Artist");
-        newArtist.setBio("Bio");
-        newArtist.setCreatedDate(Instant.now());
+        newArtist.name = "Test Artist";
+        newArtist.bio = "Bio";
+        newArtist.createdDate = Instant.now();
 
         // When
-        artistRepository.save(newArtist);
-        Artist foundArtist = artistRepository.findById(newArtist.getId()).orElse(null);
+        artistRepository.persist(newArtist);
+        Artist foundArtist = artistRepository.findById(newArtist.id);
 
         // Then
         Assertions.assertNotNull(foundArtist, "Saved artist should be found with findById");
-        Assertions.assertEquals("Test Artist", foundArtist.getName(), "Artist name should match");
-        Assertions.assertEquals("Bio", foundArtist.getBio(), "Artist bio should match");
+        Assertions.assertEquals("Test Artist", foundArtist.name, "Artist name should match");
+        Assertions.assertEquals("Bio", foundArtist.bio, "Artist bio should match");
     }
 
     @Test
+    @Transactional
     public void testCount() {
         // Given - initial empty state enforced by setup()
 
         // When
         long countBefore = artistRepository.count();
         Artist artist = new Artist();
-        artist.setName("Another Artist");
-        artist.setBio("Another Bio");
-        artist.setCreatedDate(Instant.now());
-        artistRepository.save(artist);
+        artist.name = "Another Artist";
+        artist.bio = "Another Bio";
+        artist.createdDate = Instant.now();
+        artistRepository.persist(artist);
 
         // Then
         long countAfter = artistRepository.count();
@@ -82,10 +77,10 @@ public class ArtistRepositoryTest {
     public void testDeleteByIdEndpoint() {
         // Given
         Artist artist = new Artist();
-        artist.setName("Artist to Delete");
-        artist.setBio("Bio");
-        artist.setCreatedDate(Instant.now());
-        artistRepository.save(artist);
+        artist.name = "Artist to Delete";
+        artist.bio = "Bio";
+        artist.createdDate = Instant.now();
+        artistRepository.persist(artist);
         long initialCount = artistRepository.count();
 
         // When

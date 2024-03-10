@@ -37,11 +37,11 @@ public class ArtistResourceTest {
 
         // Pre-populate the database if necessary
         Artist artist = new Artist();
-        artist.setName("Pre-existing Artist");
-        artist.setBio("A pre-existing artist bio");
-        artist.setCreatedDate(Instant.now());
+        artist.name = "Pre-existing Artist";
+        artist.bio = "A pre-existing artist bio";
+        artist.createdDate = Instant.now();
         em.persist(artist);
-        artistId = artist.getId(); // Save artist ID for use in tests
+        artistId = artist.id; // Save artist ID for use in tests
     }
 
     @Test
@@ -52,7 +52,7 @@ public class ArtistResourceTest {
                 .body("{\"name\": \"New Artist\", \"bio\": \"A new bio\"}")
                 .when().post("/api/artists")
                 .then()
-                .statusCode(200)
+                .statusCode(201)
                 .body("name", is("New Artist"),
                         "bio", is("A new bio"));
     }
