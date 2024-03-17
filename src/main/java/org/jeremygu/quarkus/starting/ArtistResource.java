@@ -5,7 +5,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.jeremygu.quarkus.starting.models.Artist;
+import org.jeremygu.quarkus.starting.models.ArtistDTO;
 import org.jeremygu.quarkus.starting.repos.ArtistRepository;
+
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -51,7 +55,8 @@ public class ArtistResource {
   public Response getArtistById(@PathParam("id") Long id) {
     Artist artist = repository.findById(id); // Panache's findById directly returns the entity
     if (artist != null) {
-      return Response.ok(artist).build();
+      var artistDTO = new ArtistDTO(artist);
+      return Response.ok(artistDTO).build();
     } else {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
