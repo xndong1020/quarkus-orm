@@ -11,12 +11,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "t_artists")
+@Table(name = "artists", schema = "uaprod")
 public class Artist extends PanacheEntityBase {
 
-  @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  public Long id;
+  @Id
+  @Column(name = "artist_id")
+  public Long artistId;
 
   @Column(name = "name", nullable = false, length = 100)
   public String name;

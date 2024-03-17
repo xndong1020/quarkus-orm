@@ -45,7 +45,7 @@ public class ArtistRepositoryTest {
 
         // When
         artistRepository.persist(newArtist);
-        Artist foundArtist = artistRepository.findById(newArtist.id);
+        Artist foundArtist = artistRepository.findById(newArtist.artistId);
 
         // Then
         Assertions.assertNotNull(foundArtist, "Saved artist should be found with findById");

@@ -69,7 +69,7 @@ public class ArtistResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Transactional
   public Response upsertArtist(Artist artist) {
-    if (artist.id == null) {
+    if (artist.artistId == null) {
       repository.persist(artist); // Persist new artist
       return Response.status(Response.Status.CREATED).entity(artist).build();
     } else {
