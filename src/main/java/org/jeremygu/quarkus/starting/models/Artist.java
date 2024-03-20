@@ -39,7 +39,7 @@ public class Artist extends PanacheEntityBase {
    * relationship.
    */
   @ManyToMany(mappedBy = "artists")
-  @JsonbTransient  // Prevent serialization of this property to break the cycle
+  @JsonbTransient // Prevent serialization of this property to break the cycle
   public Set<Film> films = new HashSet<>();
 
   // constructors
@@ -52,6 +52,11 @@ public class Artist extends PanacheEntityBase {
     this.name = name;
     this.bio = bio;
     this.createdDate = createdDate;
+  }
+
+  // for projection
+  public Artist(String name) {
+    this.name = name;
   }
 
   // JPA requires a no-arg constructor
