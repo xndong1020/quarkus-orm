@@ -6,7 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Valid;
 import org.jeremygu.quarkus.starting.models.Artist;
+import org.jeremygu.quarkus.starting.models.ArtistCreateDTO;
 import org.jeremygu.quarkus.starting.models.ArtistDTO;
 import org.jeremygu.quarkus.starting.repos.ArtistRepository;
 import org.jeremygu.quarkus.starting.repos.FilmRepository;
@@ -24,8 +28,10 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.panache.common.Page;
+import org.jeremygu.quarkus.starting.services.ArtistService;
 
 @Path("/api/artists")
 @Produces(MediaType.APPLICATION_JSON)
@@ -36,6 +42,9 @@ public class ArtistResource {
 
   @Inject
   FilmRepository filmRepository;
+
+  @Inject
+  ArtistService artistService;
 
   @GET
   public Response getAllArtists(@QueryParam("page") @DefaultValue("0") int page,
@@ -97,7 +106,7 @@ public class ArtistResource {
   public Response getFilmsByName(@PathParam("startsWith") String nameStartsWith) {
 
     var films = filmRepository.findByFilmNamePaged(nameStartsWith)
-            .collect(Collectors.toCollection(ArrayList::new));
+        .collect(Collectors.toCollection(ArrayList::new));
 
     return Response.ok(films).build();
   }
@@ -109,19 +118,48 @@ public class ArtistResource {
     return artistRepository.count(); // Use Panache's count method
   }
 
+  // @POST
+  // @Consumes(MediaType.APPLICATION_JSON)
+  // @Produces(MediaType.APPLICATION_JSON)
+  // @Transactional
+  // public Response createArtist(@Valid ArtistCreateDTO artist) {
+  // Artist artistInDb = artistRepository.createArtist(artist); // Persist new
+  // artist
+  // return Response.status(Response.Status.CREATED).entity(artistInDb).build();
+  // }
+
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  @Produces(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.TEXT_PLAIN)
   @Transactional
-  public Response upsertArtist(Artist artist) {
-    if (artist.artistId == null) {
-      artistRepository.persist(artist); // Persist new artist
-      return Response.status(Response.Status.CREATED).entity(artist).build();
-    } else {
-      Artist updatedArtist = artistRepository.getEntityManager().merge(artist); // Update existing artist
-      return Response.ok(updatedArtist).build();
+  public Response createArtist(ArtistCreateDTO artist) throws Exception {
+    try {
+      Artist artistToSave = artistService.validateAndMap(artist);
+      Artist artistInDb = artistRepository.createArtist(artistToSave);
+      return Response.status(Response.Status.CREATED).entity(artistInDb).build();
+    } catch (ConstraintViolationException e) {
+      String violations = e.getConstraintViolations().stream().map(ConstraintViolation::getMessage)
+          .collect(Collectors.joining(", "));
+      return Response.status(Status.BAD_REQUEST).entity(violations).build();
     }
   }
+
+  // @POST
+  // @Consumes(MediaType.APPLICATION_JSON)
+  // @Produces(MediaType.APPLICATION_JSON)
+  // @Transactional
+  // public Response upsertArtist(ArtistCreateDTO artist) throws Exception {
+  // if (artist.artistId == null) {
+  // Artist artistInDb = artistRepository.createArtist(artist); // Persist new
+  //
+  // return Response.status(Response.Status.CREATED).entity(artistInDb).build();
+  // } else {
+  // Artist updatedArtist = artistRepository.getEntityManager()
+  // .merge(new Artist(artist.artistId, artist.name, artist.bio,
+  // artist.createdDate)); // Update existing artist
+  // return Response.ok(updatedArtist).build();
+  // }
+  // }
 
   @DELETE
   @Path("{id}")
